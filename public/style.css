@@ -1,0 +1,328 @@
+:root {
+  --bg: #f5f7fb;
+  --card: #ffffff;
+  --text: #1f2937;
+  --muted: #6b7280;
+  --primary: #2563eb;
+  --primary-hover: #1d4ed8;
+  --secondary: #e5e7eb;
+  --secondary-hover: #d1d5db;
+  --correct: #065f46;
+  --correct-bg: #d1fae5;
+  --partial: #92400e;
+  --partial-bg: #fef3c7;
+  --incorrect: #991b1b;
+  --incorrect-bg: #fee2e2;
+  --border: #e5e7eb;
+  --radius: 10px;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  line-height: 1.5;
+}
+
+header {
+  text-align: center;
+  padding: 2rem 1rem 1rem;
+}
+
+header h1 {
+  margin: 0;
+  font-size: 2rem;
+}
+
+.subtitle {
+  color: var(--muted);
+  margin: 0.25rem 0 0;
+}
+
+main {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 1rem;
+}
+
+.practice-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 300px;
+  gap: 1.25rem;
+  align-items: start;
+}
+
+@media (max-width: 900px) {
+  .practice-grid { grid-template-columns: 1fr; }
+}
+
+.reading-display {
+  cursor: text;
+  user-select: text;
+}
+
+.lookup-sidebar {
+  background: #fafafa;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 1rem;
+  position: sticky;
+  top: 1rem;
+  max-height: calc(100vh - 2rem);
+  overflow-y: auto;
+}
+
+.lookup-sidebar h3 {
+  margin: 0 0 0.25rem;
+  font-size: 1rem;
+}
+
+.sidebar-hint {
+  font-size: 0.8rem;
+  color: var(--muted);
+  margin: 0.25rem 0 0.75rem;
+}
+
+.lookup-form {
+  display: flex;
+  gap: 0.4rem;
+  margin-bottom: 0.75rem;
+}
+
+.lookup-form input {
+  flex: 1;
+  min-width: 0;
+  padding: 0.5rem 0.6rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  font-size: 0.9rem;
+  font-family: inherit;
+  background: #fff;
+}
+
+.lookup-form input:focus {
+  outline: 2px solid var(--primary);
+  outline-offset: -1px;
+}
+
+.lookup-form button {
+  padding: 0.5rem 0.75rem;
+  font-size: 0.85rem;
+}
+
+.lookup-result .word-head {
+  font-size: 1.3rem;
+  font-weight: 700;
+  margin: 0.25rem 0 0;
+}
+
+.lookup-result .word-pos {
+  color: var(--muted);
+  font-size: 0.85rem;
+  font-style: italic;
+  margin: 0 0 0.5rem;
+}
+
+.lookup-result .word-meaning {
+  margin: 0.25rem 0 0.5rem;
+  font-size: 0.95rem;
+}
+
+.lookup-result .word-note {
+  background: #eff6ff;
+  border-left: 3px solid var(--primary);
+  padding: 0.4rem 0.6rem;
+  font-size: 0.85rem;
+  margin: 0.5rem 0;
+  border-radius: 4px;
+}
+
+.lookup-result .word-example {
+  font-size: 0.85rem;
+  color: var(--muted);
+  font-style: italic;
+  margin: 0.5rem 0;
+}
+
+.lookup-images {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.4rem;
+  margin-top: 0.75rem;
+}
+
+.lookup-images a {
+  display: block;
+  aspect-ratio: 1 / 1;
+  overflow: hidden;
+  border-radius: 6px;
+  background: #e5e7eb;
+}
+
+.lookup-images img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+  transition: transform 0.2s;
+}
+
+.lookup-images a:hover img {
+  transform: scale(1.05);
+}
+
+.lookup-images-empty {
+  font-size: 0.8rem;
+  color: var(--muted);
+  margin-top: 0.5rem;
+}
+
+.card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 1.25rem;
+  margin-bottom: 1rem;
+}
+
+.card h2 {
+  margin-top: 0;
+  font-size: 1.15rem;
+  color: var(--muted);
+  font-weight: 600;
+}
+
+textarea {
+  width: 100%;
+  min-height: 120px;
+  font-family: inherit;
+  font-size: 1rem;
+  padding: 0.75rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  resize: vertical;
+  background: #fafafa;
+}
+
+textarea:focus {
+  outline: 2px solid var(--primary);
+  outline-offset: -1px;
+  background: #fff;
+}
+
+#reading-input { min-height: 180px; }
+#answer-input { min-height: 80px; }
+
+.row {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+  margin-top: 0.75rem;
+  flex-wrap: wrap;
+}
+
+button {
+  padding: 0.6rem 1rem;
+  border: none;
+  border-radius: var(--radius);
+  background: var(--primary);
+  color: white;
+  font-size: 0.95rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+button:hover:not(:disabled) { background: var(--primary-hover); }
+
+button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+button.secondary {
+  background: var(--secondary);
+  color: var(--text);
+}
+
+button.secondary:hover:not(:disabled) { background: var(--secondary-hover); }
+
+.hint {
+  color: var(--muted);
+  font-size: 0.85rem;
+  margin-left: auto;
+}
+
+.hidden { display: none !important; }
+
+.reading-display {
+  background: #fafafa;
+  border-left: 3px solid var(--primary);
+  padding: 0.75rem 1rem;
+  margin-bottom: 1rem;
+  white-space: pre-wrap;
+  font-size: 0.95rem;
+  max-height: 200px;
+  overflow-y: auto;
+}
+
+.question-box, .feedback-box {
+  padding: 0.85rem 1rem;
+  border-radius: var(--radius);
+  margin-bottom: 0.75rem;
+}
+
+.question-box {
+  background: #eff6ff;
+  border: 1px solid #dbeafe;
+}
+
+.label {
+  display: block;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--muted);
+  margin-bottom: 0.25rem;
+}
+
+#question-text, #feedback-text {
+  margin: 0;
+  font-size: 1.05rem;
+}
+
+.feedback-box.correct { background: var(--correct-bg); border: 1px solid #a7f3d0; }
+.feedback-box.correct .label { color: var(--correct); }
+.feedback-box.partial { background: var(--partial-bg); border: 1px solid #fde68a; }
+.feedback-box.partial .label { color: var(--partial); }
+.feedback-box.incorrect { background: var(--incorrect-bg); border: 1px solid #fecaca; }
+.feedback-box.incorrect .label { color: var(--incorrect); }
+
+#history-details {
+  margin-top: 1rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid var(--border);
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+#history-list {
+  padding-left: 1.25rem;
+}
+
+#history-list li {
+  margin-bottom: 0.5rem;
+}
+
+.error {
+  background: var(--incorrect-bg);
+  color: var(--incorrect);
+  border: 1px solid #fecaca;
+  padding: 0.75rem 1rem;
+  border-radius: var(--radius);
+  margin-top: 1rem;
+}

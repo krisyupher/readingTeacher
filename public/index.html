@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Reading Teacher</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <header>
+    <h1>Reading Teacher</h1>
+    <p class="subtitle">Paste a text, then practice answering questions about it.</p>
+  </header>
+
+  <main>
+    <section id="setup" class="card">
+      <h2>1. Your reading</h2>
+      <textarea id="reading-input" placeholder="Paste or type an English text here (a paragraph, a short story, a news article, etc.)"></textarea>
+      <div class="row">
+        <button id="start-btn">Start practicing</button>
+        <span id="char-count" class="hint">0 characters</span>
+      </div>
+    </section>
+
+    <section id="practice" class="card hidden">
+      <h2>2. Practice</h2>
+      <div class="practice-grid">
+        <div class="practice-main">
+          <div id="reading-display" class="reading-display"></div>
+
+          <div id="qa-area">
+            <div id="question-box" class="question-box">
+              <span class="label">Question</span>
+              <p id="question-text">Loading...</p>
+            </div>
+
+            <textarea id="answer-input" placeholder="Type your answer in English..."></textarea>
+
+            <div class="row">
+              <button id="submit-btn">Submit answer</button>
+              <button id="next-btn" class="hidden">Next question</button>
+              <button id="reset-btn" class="secondary">Change reading</button>
+            </div>
+
+            <div id="feedback-box" class="feedback-box hidden">
+              <span class="label" id="feedback-label">Feedback</span>
+              <p id="feedback-text"></p>
+            </div>
+          </div>
+
+          <details id="history-details">
+            <summary>History (<span id="history-count">0</span>)</summary>
+            <ol id="history-list"></ol>
+          </details>
+        </div>
+
+        <aside class="lookup-sidebar">
+          <h3>Word lookup</h3>
+          <p class="sidebar-hint">Double-click or highlight a word in the reading to look it up.</p>
+          <div class="lookup-form">
+            <input type="text" id="lookup-input" placeholder="Or type a word..." />
+            <button id="lookup-btn" class="secondary">Look up</button>
+          </div>
+          <div id="lookup-status" class="sidebar-hint"></div>
+          <div id="lookup-result" class="lookup-result hidden"></div>
+        </aside>
+      </div>
+    </section>
+
+    <div id="error-banner" class="error hidden"></div>
+  </main>
+
+  <script src="app.js"></script>
+</body>
+</html>
