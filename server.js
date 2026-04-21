@@ -9,33 +9,70 @@ const app = express();
 app.use(express.json({ limit: '1mb' }));
 app.use(express.static(path.join(__dirname, 'public')));
 
-const GROQ_API_KEY = process.env.GROQ_API_KEY;
-const GROQ_URL = 'https://api.groq.com/openai/v1/chat/completions';
-const DEFAULT_MODELS = [
-  'llama-3.3-70b-versatile',
-  'llama-3.1-8b-instant',
-  'llama3-70b-8192',
-  'llama3-8b-8192',
-  'gemma2-9b-it'
+const PROVIDERS = {
+  groq: {
+    key: () => process.env.GROQ_API_KEY,
+    url: 'https://api.groq.com/openai/v1/chat/completions',
+    type: 'openai'
+  },
+  openai: {
+    key: () => process.env.OPENAI_API_KEY,
+    url: 'https://api.openai.com/v1/chat/completions',
+    type: 'openai'
+  },
+  openrouter: {
+    key: () => process.env.OPENROUTER_API_KEY,
+    url: 'https://openrouter.ai/api/v1/chat/completions',
+    type: 'openai'
+  },
+  gemini: {
+    key: () => process.env.GEMINI_API_KEY,
+    type: 'gemini'
+  }
+};
+
+const DEFAULT_CHAIN = [
+  'groq:llama-3.3-70b-versatile',
+  'groq:llama-3.1-8b-instant',
+  'groq:llama3-70b-8192',
+  'groq:llama3-8b-8192',
+  'groq:gemma2-9b-it',
+  'gemini:gemini-2.0-flash',
+  'gemini:gemini-1.5-flash',
+  'openrouter:qwen/qwen-2.5-72b-instruct:free',
+  'openrouter:meta-llama/llama-3.3-70b-instruct:free',
+  'openrouter:google/gemini-2.0-flash-exp:free',
+  'openai:gpt-4o-mini'
 ];
-const GROQ_MODELS = (process.env.GROQ_MODELS || process.env.GROQ_MODEL || DEFAULT_MODELS.join(','))
+
+const MODEL_CHAIN = (process.env.LLM_MODELS || process.env.GROQ_MODELS || DEFAULT_CHAIN.join(','))
   .split(',')
   .map((s) => s.trim())
   .filter(Boolean);
 
 let currentModelIdx = 0;
 
-function isRetriable(status, message) {
-  if (status === 429 || status === 500 || status === 502 || status === 503) return true;
-  return /rate[ _-]?limit|quota|exceeded|credit|unavailable|decommissioned|not found|does not exist/i.test(message || '');
+function parseModel(spec) {
+  const colon = spec.indexOf(':');
+  if (colon < 0) return { provider: 'groq', model: spec };
+  const provider = spec.slice(0, colon);
+  if (!PROVIDERS[provider]) return { provider: 'groq', model: spec };
+  return { provider, model: spec.slice(colon + 1) };
 }
 
-async function callGroqModel(prompt, model) {
-  const res = await fetch(GROQ_URL, {
+function isRetriable(err) {
+  if (err.noKey) return true;
+  const s = err.status;
+  if (s === 429 || s === 500 || s === 502 || s === 503 || s === 404) return true;
+  return /rate[ _-]?limit|quota|exceeded|credit|unavailable|decommissioned|not found|does not exist|insufficient/i.test(err.message || '');
+}
+
+async function callOpenAICompat(url, apiKey, model, prompt) {
+  const res = await fetch(url, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      'Authorization': `Bearer ${GROQ_API_KEY}`
+      'Authorization': `Bearer ${apiKey}`
     },
     body: JSON.stringify({
       model,
@@ -56,29 +93,67 @@ async function callGroqModel(prompt, model) {
   return text;
 }
 
+async function callGemini(apiKey, model, prompt) {
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      contents: [{ parts: [{ text: prompt }] }],
+      generationConfig: { temperature: 0.7, responseMimeType: 'application/json' }
+    })
+  });
+  if (!res.ok) {
+    const body = await res.text();
+    const err = new Error(body.slice(0, 400));
+    err.status = res.status;
+    throw err;
+  }
+  const data = await res.json();
+  const text = data?.candidates?.[0]?.content?.parts?.[0]?.text;
+  if (!text) throw new Error('Empty response');
+  return text;
+}
+
+async function callModel(spec, prompt) {
+  const { provider, model } = parseModel(spec);
+  const p = PROVIDERS[provider];
+  const apiKey = p.key();
+  if (!apiKey) {
+    const err = new Error(`No API key for "${provider}". Set ${provider.toUpperCase()}_API_KEY in .env to enable.`);
+    err.noKey = true;
+    throw err;
+  }
+  if (p.type === 'openai') return callOpenAICompat(p.url, apiKey, model, prompt);
+  if (p.type === 'gemini') return callGemini(apiKey, model, prompt);
+  throw new Error(`Unknown provider type: ${p.type}`);
+}
+
 async function callLLM(prompt) {
-  if (!GROQ_API_KEY) {
-    throw new Error('GROQ_API_KEY is not set. Copy .env.example to .env and add your key from https://console.groq.com/keys');
+  const configuredProviders = Object.entries(PROVIDERS).filter(([, p]) => p.key()).map(([n]) => n);
+  if (configuredProviders.length === 0) {
+    throw new Error('No LLM provider API keys configured. Set at least one of GROQ_API_KEY, GEMINI_API_KEY, OPENAI_API_KEY, OPENROUTER_API_KEY in .env.');
   }
   const errors = [];
-  for (let attempt = 0; attempt < GROQ_MODELS.length; attempt++) {
-    const idx = (currentModelIdx + attempt) % GROQ_MODELS.length;
-    const model = GROQ_MODELS[idx];
+  for (let attempt = 0; attempt < MODEL_CHAIN.length; attempt++) {
+    const idx = (currentModelIdx + attempt) % MODEL_CHAIN.length;
+    const spec = MODEL_CHAIN[idx];
     try {
-      const result = await callGroqModel(prompt, model);
+      const result = await callModel(spec, prompt);
       if (idx !== currentModelIdx) {
-        console.log(`Switched active model to: ${model}`);
+        console.log(`Switched active model to: ${spec}`);
         currentModelIdx = idx;
       }
       return result;
     } catch (err) {
-      const retriable = isRetriable(err.status, err.message);
-      errors.push(`${model} [${err.status || '?'}]: ${err.message.slice(0, 120)}`);
-      console.warn(`Model ${model} failed (${err.status || '?'}): ${err.message.slice(0, 120)}`);
-      if (!retriable) throw err;
+      errors.push(`${spec} [${err.status ?? (err.noKey ? 'no-key' : '?')}]: ${(err.message || '').slice(0, 120)}`);
+      if (!err.noKey) {
+        console.warn(`Model ${spec} failed (${err.status ?? '?'}): ${(err.message || '').slice(0, 120)}`);
+      }
+      if (!isRetriable(err)) throw err;
     }
   }
-  throw new Error('All Groq models failed:\n' + errors.join('\n'));
+  throw new Error('All models in the chain failed:\n' + errors.join('\n'));
 }
 
 function extractJson(text) {
@@ -207,8 +282,15 @@ app.post('/api/feedback', async (req, res) => {
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
   console.log(`Reading Teacher running at http://localhost:${PORT}`);
-  console.log(`Groq model fallback chain: ${GROQ_MODELS.join(' → ')}`);
-  if (!GROQ_API_KEY) {
-    console.warn('WARNING: GROQ_API_KEY is not set. The app will not work until you add it to .env');
+  const active = Object.entries(PROVIDERS).filter(([, p]) => p.key()).map(([n]) => n);
+  console.log(`Providers with API keys: ${active.length ? active.join(', ') : '(none)'}`);
+  console.log(`Model fallback chain (${MODEL_CHAIN.length}):`);
+  MODEL_CHAIN.forEach((m, i) => {
+    const { provider } = parseModel(m);
+    const ok = PROVIDERS[provider]?.key() ? '✓' : '·';
+    console.log(`  ${ok} ${i + 1}. ${m}`);
+  });
+  if (active.length === 0) {
+    console.warn('WARNING: No API keys configured. Set at least one of GROQ_API_KEY, GEMINI_API_KEY, OPENAI_API_KEY, OPENROUTER_API_KEY in .env');
   }
 });
