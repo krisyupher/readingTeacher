@@ -3,18 +3,60 @@
   --card: #ffffff;
   --text: #1f2937;
   --muted: #6b7280;
+  --pane-bg: #fafafa;
+  --input-bg: #fafafa;
+  --input-bg-focus: #ffffff;
+  --reading-bg: #ffffff;
+  --pdf-mode-bg: #e5e7eb;
+  --question-bg: #eff6ff;
+  --question-border: #dbeafe;
   --primary: #2563eb;
   --primary-hover: #1d4ed8;
   --secondary: #e5e7eb;
   --secondary-hover: #d1d5db;
   --correct: #065f46;
   --correct-bg: #d1fae5;
+  --correct-border: #a7f3d0;
   --partial: #92400e;
   --partial-bg: #fef3c7;
+  --partial-border: #fde68a;
   --incorrect: #991b1b;
   --incorrect-bg: #fee2e2;
+  --incorrect-border: #fecaca;
   --border: #e5e7eb;
+  --image-bg: #e5e7eb;
+  --shadow: rgba(0, 0, 0, 0.15);
   --radius: 10px;
+}
+
+[data-theme="dark"] {
+  --bg: #0f1419;
+  --card: #1a1f26;
+  --text: #e5e7eb;
+  --muted: #9ca3af;
+  --pane-bg: #161b22;
+  --input-bg: #0f141a;
+  --input-bg-focus: #1a1f26;
+  --reading-bg: #1a1f26;
+  --pdf-mode-bg: #0a0d12;
+  --question-bg: #1e2a3d;
+  --question-border: #2d4159;
+  --primary: #3b82f6;
+  --primary-hover: #60a5fa;
+  --secondary: #2d343c;
+  --secondary-hover: #3a4049;
+  --correct: #86efac;
+  --correct-bg: #0f2a1e;
+  --correct-border: #1f4d36;
+  --partial: #fcd34d;
+  --partial-bg: #2d2310;
+  --partial-border: #503c1c;
+  --incorrect: #fca5a5;
+  --incorrect-bg: #2d1515;
+  --incorrect-border: #5a2828;
+  --border: #2d343c;
+  --image-bg: #2d343c;
+  --shadow: rgba(0, 0, 0, 0.5);
 }
 
 * { box-sizing: border-box; }
@@ -28,6 +70,7 @@ body {
 }
 
 header {
+  position: relative;
   text-align: center;
   padding: 2rem 1rem 1rem;
 }
@@ -35,6 +78,26 @@ header {
 header h1 {
   margin: 0;
   font-size: 2rem;
+}
+
+.theme-toggle {
+  position: absolute;
+  top: 1rem;
+  right: 1.5rem;
+  background: var(--pane-bg);
+  color: var(--text);
+  border: 1px solid var(--border);
+  padding: 0.4rem 0.85rem;
+  font-size: 0.85rem;
+  font-weight: 500;
+  border-radius: var(--radius);
+  cursor: pointer;
+  transition: background 0.2s, border-color 0.2s;
+}
+
+.theme-toggle:hover {
+  background: var(--secondary);
+  border-color: var(--primary);
 }
 
 .subtitle {
@@ -118,7 +181,7 @@ main {
 }
 
 .pane {
-  background: #fafafa;
+  background: var(--pane-bg);
   border: 1px solid var(--border);
   border-radius: var(--radius);
   padding: 1rem;
@@ -146,7 +209,7 @@ main {
 }
 
 .reading-pane {
-  background: #fafafa;
+  background: var(--pane-bg);
   border: 1px solid var(--border);
   border-radius: var(--radius);
   padding: 1rem;
@@ -185,7 +248,8 @@ main {
   border-radius: var(--radius);
   font-size: 0.9rem;
   font-family: inherit;
-  background: #fff;
+  background: var(--input-bg-focus);
+  color: var(--text);
 }
 
 .lookup-form input:focus {
@@ -217,7 +281,7 @@ main {
 }
 
 .lookup-result .word-note {
-  background: #eff6ff;
+  background: var(--question-bg);
   border-left: 3px solid var(--primary);
   padding: 0.4rem 0.6rem;
   font-size: 0.85rem;
@@ -244,7 +308,7 @@ main {
   aspect-ratio: 1 / 1;
   overflow: hidden;
   border-radius: 6px;
-  background: #e5e7eb;
+  background: var(--image-bg);
 }
 
 .lookup-images img {
@@ -289,13 +353,14 @@ textarea {
   border: 1px solid var(--border);
   border-radius: var(--radius);
   resize: vertical;
-  background: #fafafa;
+  background: var(--input-bg);
+  color: var(--text);
 }
 
 textarea:focus {
   outline: 2px solid var(--primary);
   outline-offset: -1px;
-  background: #fff;
+  background: var(--input-bg-focus);
 }
 
 #reading-input { min-height: 180px; }
@@ -304,7 +369,7 @@ textarea:focus {
 #reading-input.drag-over {
   outline: 2px dashed var(--primary);
   outline-offset: -4px;
-  background: #eff6ff;
+  background: var(--question-bg);
 }
 
 #file-status {
@@ -354,7 +419,7 @@ button.secondary:hover:not(:disabled) { background: var(--secondary-hover); }
 .hidden { display: none !important; }
 
 .reading-display {
-  background: #fff;
+  background: var(--reading-bg);
   border-left: 3px solid var(--primary);
   padding: 0.75rem 1rem;
   white-space: pre-wrap;
@@ -365,10 +430,11 @@ button.secondary:hover:not(:disabled) { background: var(--secondary-hover); }
   overflow-y: auto;
   cursor: text;
   user-select: text;
+  color: var(--text);
 }
 
 .reading-display.pdf-mode {
-  background: #e5e7eb;
+  background: var(--pdf-mode-bg);
   white-space: normal;
   padding: 1rem 0;
   line-height: 1;
@@ -378,7 +444,7 @@ button.secondary:hover:not(:disabled) { background: var(--secondary-hover); }
   position: relative;
   margin: 0 auto 1rem;
   background: #fff;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.15);
+  box-shadow: 0 1px 3px var(--shadow);
 }
 
 .pdf-page canvas {
@@ -398,8 +464,8 @@ button.secondary:hover:not(:disabled) { background: var(--secondary-hover); }
 }
 
 .question-box {
-  background: #eff6ff;
-  border: 1px solid #dbeafe;
+  background: var(--question-bg);
+  border: 1px solid var(--question-border);
 }
 
 .label {
@@ -417,11 +483,11 @@ button.secondary:hover:not(:disabled) { background: var(--secondary-hover); }
   font-size: 1.05rem;
 }
 
-.feedback-box.correct { background: var(--correct-bg); border: 1px solid #a7f3d0; }
+.feedback-box.correct { background: var(--correct-bg); border: 1px solid var(--correct-border); color: var(--correct); }
 .feedback-box.correct .label { color: var(--correct); }
-.feedback-box.partial { background: var(--partial-bg); border: 1px solid #fde68a; }
+.feedback-box.partial { background: var(--partial-bg); border: 1px solid var(--partial-border); color: var(--partial); }
 .feedback-box.partial .label { color: var(--partial); }
-.feedback-box.incorrect { background: var(--incorrect-bg); border: 1px solid #fecaca; }
+.feedback-box.incorrect { background: var(--incorrect-bg); border: 1px solid var(--incorrect-border); color: var(--incorrect); }
 .feedback-box.incorrect .label { color: var(--incorrect); }
 
 #history-details {
@@ -443,7 +509,7 @@ button.secondary:hover:not(:disabled) { background: var(--secondary-hover); }
 .error {
   background: var(--incorrect-bg);
   color: var(--incorrect);
-  border: 1px solid #fecaca;
+  border: 1px solid var(--incorrect-border);
   padding: 0.75rem 1rem;
   border-radius: var(--radius);
   margin-top: 1rem;
