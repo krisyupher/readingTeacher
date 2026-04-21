@@ -4,7 +4,9 @@ const state = {
   text: '',
   currentQuestion: null,
   history: [],
-  lookupCache: new Map()
+  lookupCache: new Map(),
+  pdfDoc: null,
+  pdfName: ''
 };
 
 const els = {
@@ -28,8 +30,66 @@ const els = {
   lookupInput: $('lookup-input'),
   lookupBtn: $('lookup-btn'),
   lookupStatus: $('lookup-status'),
-  lookupResult: $('lookup-result')
+  lookupResult: $('lookup-result'),
+  attachBtn: $('attach-btn'),
+  fileInput: $('file-input'),
+  fileStatus: $('file-status')
 };
+
+els.attachBtn.addEventListener('click', () => els.fileInput.click());
+els.fileInput.addEventListener('change', (e) => {
+  const file = e.target.files && e.target.files[0];
+  if (file) handleFile(file);
+  e.target.value = '';
+});
+
+['dragenter', 'dragover'].forEach((ev) => {
+  els.readingInput.addEventListener(ev, (e) => {
+    if (!e.dataTransfer || !Array.from(e.dataTransfer.types || []).includes('Files')) return;
+    e.preventDefault();
+    els.readingInput.classList.add('drag-over');
+  });
+});
+['dragleave', 'drop'].forEach((ev) => {
+  els.readingInput.addEventListener(ev, () => els.readingInput.classList.remove('drag-over'));
+});
+els.readingInput.addEventListener('drop', (e) => {
+  const file = e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0];
+  if (!file) return;
+  e.preventDefault();
+  handleFile(file);
+});
+
+async function handleFile(file) {
+  const name = (file.name || '').toLowerCase();
+  els.fileStatus.textContent = `Loading ${file.name}...`;
+  try {
+    if (name.endsWith('.pdf') || file.type === 'application/pdf') {
+      if (!window.pdfjsLib) throw new Error('PDF library failed to load.');
+      const buf = await file.arrayBuffer();
+      const pdf = await window.pdfjsLib.getDocument({ data: buf }).promise;
+      state.pdfDoc = pdf;
+      state.pdfName = file.name;
+      els.readingInput.value = '';
+      els.charCount.textContent = '0 characters';
+      els.fileStatus.textContent = `PDF attached: ${file.name} (${pdf.numPages} pages)`;
+    } else if (name.endsWith('.txt') || file.type.startsWith('text/')) {
+      const text = (await file.text()).trim();
+      if (!text) throw new Error('No text found in the file.');
+      state.pdfDoc = null;
+      state.pdfName = '';
+      els.readingInput.value = text;
+      els.charCount.textContent = `${text.length} characters`;
+      els.fileStatus.textContent = `Loaded: ${file.name}`;
+    } else {
+      throw new Error('Unsupported file. Use .pdf or .txt.');
+    }
+  } catch (err) {
+    state.pdfDoc = null;
+    state.pdfName = '';
+    els.fileStatus.textContent = `Error: ${err.message}`;
+  }
+}
 
 els.readingInput.addEventListener('input', () => {
   els.charCount.textContent = `${els.readingInput.value.length} characters`;
@@ -49,6 +109,35 @@ els.answerInput.addEventListener('keydown', (e) => {
 
 els.readingDisplay.addEventListener('mouseup', handleReadingSelection);
 els.readingDisplay.addEventListener('dblclick', handleReadingSelection);
+
+document.querySelectorAll('.pane-toggle').forEach((btn) => {
+  btn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    togglePaneCollapse(btn.dataset.pane);
+  });
+});
+
+document.querySelectorAll('.pane').forEach((pane) => {
+  pane.addEventListener('click', () => {
+    if (!pane.classList.contains('collapsed')) return;
+    const btn = pane.querySelector('.pane-toggle');
+    if (btn) togglePaneCollapse(btn.dataset.pane);
+  });
+});
+
+function togglePaneCollapse(key) {
+  const paneId = key === 'search' ? 'pane-search' : key === 'qa' ? 'pane-qa' : null;
+  if (!paneId) return;
+  const pane = document.getElementById(paneId);
+  const grid = document.querySelector('.practice-grid');
+  const collapsed = pane.classList.toggle('collapsed');
+  grid.classList.toggle(`collapsed-${key}`, collapsed);
+  const btn = pane.querySelector('.pane-toggle');
+  if (btn) {
+    btn.textContent = collapsed ? '+' : '−';
+    btn.title = collapsed ? 'Expand' : 'Minimize';
+  }
+}
 els.lookupBtn.addEventListener('click', () => {
   const w = els.lookupInput.value.trim();
   if (w) lookupWord(w);
@@ -174,18 +263,113 @@ async function postJson(url, body) {
 
 async function startPractice() {
   clearError();
-  const text = els.readingInput.value.trim();
-  if (text.length < 20) {
-    showError('Please paste a longer reading (at least 20 characters).');
-    return;
-  }
-  state.text = text;
   state.history = [];
-  els.readingDisplay.textContent = text;
-  els.setup.classList.add('hidden');
-  els.practice.classList.remove('hidden');
+
+  if (state.pdfDoc) {
+    els.readingDisplay.textContent = 'Rendering PDF...';
+    els.setup.classList.add('hidden');
+    els.practice.classList.remove('hidden');
+    try {
+      const extracted = await extractPdfText(state.pdfDoc);
+      state.text = extracted.trim();
+      if (state.text.length < 20) {
+        showError('This PDF has no selectable text (maybe a scanned image). Word lookup and questions need real text.');
+        resetSession();
+        return;
+      }
+      await renderPdfPages(state.pdfDoc, els.readingDisplay);
+    } catch (err) {
+      showError(`Failed to render PDF: ${err.message}`);
+      return;
+    }
+  } else {
+    const text = els.readingInput.value.trim();
+    if (text.length < 20) {
+      showError('Please paste a longer reading (at least 20 characters) or attach a PDF.');
+      return;
+    }
+    state.text = text;
+    els.readingDisplay.textContent = text;
+    els.readingDisplay.classList.remove('pdf-mode');
+    els.setup.classList.add('hidden');
+    els.practice.classList.remove('hidden');
+  }
+
   await loadNextQuestion();
 }
+
+async function extractPdfText(pdf) {
+  const parts = [];
+  for (let i = 1; i <= pdf.numPages; i++) {
+    const page = await pdf.getPage(i);
+    const content = await page.getTextContent();
+    parts.push(content.items.map((it) => ('str' in it ? it.str : '')).join(' '));
+  }
+  return parts.join('\n\n');
+}
+
+let pdfRenderId = 0;
+let lastRenderedWidth = 0;
+
+async function renderPdfPages(pdf, container) {
+  const myId = ++pdfRenderId;
+  container.innerHTML = '';
+  container.classList.add('pdf-mode');
+
+  const availWidth = Math.max(240, container.clientWidth - 32);
+  const firstPage = await pdf.getPage(1);
+  const baseViewport = firstPage.getViewport({ scale: 1 });
+  const scale = Math.max(0.5, Math.min(2.5, availWidth / baseViewport.width));
+  lastRenderedWidth = container.clientWidth;
+
+  for (let pageNum = 1; pageNum <= pdf.numPages; pageNum++) {
+    if (myId !== pdfRenderId) return;
+    const page = await pdf.getPage(pageNum);
+    const viewport = page.getViewport({ scale });
+
+    const pageWrap = document.createElement('div');
+    pageWrap.className = 'pdf-page';
+    pageWrap.style.width = `${viewport.width}px`;
+    pageWrap.style.height = `${viewport.height}px`;
+
+    const canvas = document.createElement('canvas');
+    canvas.width = viewport.width;
+    canvas.height = viewport.height;
+    pageWrap.appendChild(canvas);
+
+    const textLayerDiv = document.createElement('div');
+    textLayerDiv.className = 'textLayer';
+    textLayerDiv.style.width = `${viewport.width}px`;
+    textLayerDiv.style.height = `${viewport.height}px`;
+    pageWrap.appendChild(textLayerDiv);
+
+    container.appendChild(pageWrap);
+
+    await page.render({ canvasContext: canvas.getContext('2d'), viewport }).promise;
+    if (myId !== pdfRenderId) return;
+
+    const textContent = await page.getTextContent();
+    const task = window.pdfjsLib.renderTextLayer({
+      textContentSource: textContent,
+      container: textLayerDiv,
+      viewport,
+      textDivs: []
+    });
+    if (task && task.promise) await task.promise;
+  }
+}
+
+let pdfResizeTimer = null;
+const pdfResizeObserver = new ResizeObserver(() => {
+  if (!state.pdfDoc) return;
+  const w = els.readingDisplay.clientWidth;
+  if (Math.abs(w - lastRenderedWidth) < 20) return;
+  clearTimeout(pdfResizeTimer);
+  pdfResizeTimer = setTimeout(() => {
+    if (state.pdfDoc) renderPdfPages(state.pdfDoc, els.readingDisplay);
+  }, 200);
+});
+pdfResizeObserver.observe(els.readingDisplay);
 
 async function loadNextQuestion() {
   clearError();
@@ -274,8 +458,13 @@ function resetSession() {
   state.text = '';
   state.currentQuestion = null;
   state.history = [];
+  state.pdfDoc = null;
+  state.pdfName = '';
   els.practice.classList.add('hidden');
   els.setup.classList.remove('hidden');
+  els.readingDisplay.classList.remove('pdf-mode');
+  els.readingDisplay.innerHTML = '';
+  els.fileStatus.textContent = '';
   els.readingInput.focus();
   updateHistory();
 }

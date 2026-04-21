@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Reading Teacher</title>
   <link rel="stylesheet" href="style.css" />
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/web/pdf_viewer.css" />
 </head>
 <body>
   <header>
@@ -13,9 +14,12 @@
 
   <main>
     <section id="setup" class="card">
-      <textarea id="reading-input" placeholder="Paste or type an English text here (a paragraph, a short story, a news article, etc.)"></textarea>
+      <textarea id="reading-input" placeholder="Paste or type text here, or drop a PDF / .txt file onto this box"></textarea>
       <div class="row">
         <button id="start-btn">Start practicing</button>
+        <button id="attach-btn" class="secondary" type="button">Attach file</button>
+        <input type="file" id="file-input" accept=".pdf,.txt,application/pdf,text/plain" hidden />
+        <span id="file-status" class="hint"></span>
         <span id="char-count" class="hint">0 characters</span>
       </div>
     </section>
@@ -24,7 +28,10 @@
       <div class="practice-grid">
         <aside class="pane lookup-sidebar" id="pane-search">
           <div class="pane-header">
-            <h3>Word lookup</h3>
+            <div class="pane-title-row">
+              <h3>Word lookup</h3>
+              <button class="pane-toggle" data-pane="search" type="button" title="Minimize">−</button>
+            </div>
             <p class="sidebar-hint">Double-click or highlight a word in the reading to look it up.</p>
             <div class="lookup-form">
               <input type="text" id="lookup-input" placeholder="Or type a word..." />
@@ -43,7 +50,12 @@
         </div>
 
         <div class="pane qa-pane" id="pane-qa">
-          <div class="pane-header"><h3>Practice</h3></div>
+          <div class="pane-header">
+            <div class="pane-title-row">
+              <h3>Practice</h3>
+              <button class="pane-toggle" data-pane="qa" type="button" title="Minimize">−</button>
+            </div>
+          </div>
           <div class="pane-body">
             <div id="qa-area">
               <div id="question-box" class="question-box">
@@ -77,6 +89,13 @@
     <div id="error-banner" class="error hidden"></div>
   </main>
 
+  <script src="https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.min.js"></script>
+  <script>
+    if (window.pdfjsLib) {
+      window.pdfjsLib.GlobalWorkerOptions.workerSrc =
+        'https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.worker.min.js';
+    }
+  </script>
   <script src="app.js"></script>
 </body>
 </html>

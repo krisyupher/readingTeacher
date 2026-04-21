@@ -10,13 +10,27 @@ app.use(express.json({ limit: '1mb' }));
 app.use(express.static(path.join(__dirname, 'public')));
 
 const GROQ_API_KEY = process.env.GROQ_API_KEY;
-const GROQ_MODEL = process.env.GROQ_MODEL || 'llama-3.3-70b-versatile';
 const GROQ_URL = 'https://api.groq.com/openai/v1/chat/completions';
+const DEFAULT_MODELS = [
+  'llama-3.3-70b-versatile',
+  'llama-3.1-8b-instant',
+  'llama3-70b-8192',
+  'llama3-8b-8192',
+  'gemma2-9b-it'
+];
+const GROQ_MODELS = (process.env.GROQ_MODELS || process.env.GROQ_MODEL || DEFAULT_MODELS.join(','))
+  .split(',')
+  .map((s) => s.trim())
+  .filter(Boolean);
 
-async function callLLM(prompt) {
-  if (!GROQ_API_KEY) {
-    throw new Error('GROQ_API_KEY is not set. Copy .env.example to .env and add your key from https://console.groq.com/keys');
-  }
+let currentModelIdx = 0;
+
+function isRetriable(status, message) {
+  if (status === 429 || status === 500 || status === 502 || status === 503) return true;
+  return /rate[ _-]?limit|quota|exceeded|credit|unavailable|decommissioned|not found|does not exist/i.test(message || '');
+}
+
+async function callGroqModel(prompt, model) {
   const res = await fetch(GROQ_URL, {
     method: 'POST',
     headers: {
@@ -24,7 +38,7 @@ async function callLLM(prompt) {
       'Authorization': `Bearer ${GROQ_API_KEY}`
     },
     body: JSON.stringify({
-      model: GROQ_MODEL,
+      model,
       messages: [{ role: 'user', content: prompt }],
       temperature: 0.7,
       response_format: { type: 'json_object' }
@@ -32,12 +46,39 @@ async function callLLM(prompt) {
   });
   if (!res.ok) {
     const body = await res.text();
-    throw new Error(`Groq API error ${res.status}: ${body}`);
+    const err = new Error(body.slice(0, 400));
+    err.status = res.status;
+    throw err;
   }
   const data = await res.json();
   const text = data?.choices?.[0]?.message?.content;
-  if (!text) throw new Error('Empty response from Groq');
+  if (!text) throw new Error('Empty response');
   return text;
+}
+
+async function callLLM(prompt) {
+  if (!GROQ_API_KEY) {
+    throw new Error('GROQ_API_KEY is not set. Copy .env.example to .env and add your key from https://console.groq.com/keys');
+  }
+  const errors = [];
+  for (let attempt = 0; attempt < GROQ_MODELS.length; attempt++) {
+    const idx = (currentModelIdx + attempt) % GROQ_MODELS.length;
+    const model = GROQ_MODELS[idx];
+    try {
+      const result = await callGroqModel(prompt, model);
+      if (idx !== currentModelIdx) {
+        console.log(`Switched active model to: ${model}`);
+        currentModelIdx = idx;
+      }
+      return result;
+    } catch (err) {
+      const retriable = isRetriable(err.status, err.message);
+      errors.push(`${model} [${err.status || '?'}]: ${err.message.slice(0, 120)}`);
+      console.warn(`Model ${model} failed (${err.status || '?'}): ${err.message.slice(0, 120)}`);
+      if (!retriable) throw err;
+    }
+  }
+  throw new Error('All Groq models failed:\n' + errors.join('\n'));
 }
 
 function extractJson(text) {
@@ -166,7 +207,7 @@ app.post('/api/feedback', async (req, res) => {
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
   console.log(`Reading Teacher running at http://localhost:${PORT}`);
-  console.log(`Using Groq model: ${GROQ_MODEL}`);
+  console.log(`Groq model fallback chain: ${GROQ_MODELS.join(' → ')}`);
   if (!GROQ_API_KEY) {
     console.warn('WARNING: GROQ_API_KEY is not set. The app will not work until you add it to .env');
   }
