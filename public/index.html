@@ -96,6 +96,9 @@
       window.pdfjsLib.GlobalWorkerOptions.workerSrc =
         'https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.worker.min.js';
     }
+    // Leave empty for local dev (same origin). For GitHub Pages, set to your
+    // backend URL, e.g. 'https://reading-teacher-api.onrender.com'
+    window.READING_TEACHER_API_BASE = '';
   </script>
   <script src="app.js"></script>
 </body>

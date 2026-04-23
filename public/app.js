@@ -1,5 +1,7 @@
 const $ = (id) => document.getElementById(id);
 
+const API_BASE = window.READING_TEACHER_API_BASE || '';
+
 (function initTheme() {
   const stored = localStorage.getItem('theme');
   const prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
@@ -268,7 +270,7 @@ function clearError() {
 }
 
 async function postJson(url, body) {
-  const res = await fetch(url, {
+  const res = await fetch(API_BASE + url, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body)
