@@ -174,11 +174,17 @@ function extractJson(text) {
   }
 }
 
-function buildQuestionPrompt(text, history) {
-  const asked = history.map((h, i) => `${i + 1}. ${h.question}`).join('\n') || '(none yet)';
-  return `You are an English reading-comprehension teacher for a student.
+const SUPPORTED_LANGUAGES = ['English', 'Spanish', 'French', 'Portuguese'];
 
-The student just read this text:
+function pickLanguage(value) {
+  return SUPPORTED_LANGUAGES.includes(value) ? value : 'English';
+}
+
+function buildQuestionPrompt(text, history, language) {
+  const asked = history.map((h, i) => `${i + 1}. ${h.question}`).join('\n') || '(none yet)';
+  return `You are a ${language} reading-comprehension teacher for a student.
+
+The student just read this text (in ${language}):
 """
 ${text}
 """
@@ -186,16 +192,16 @@ ${text}
 Previously asked questions (do NOT repeat these or ask very similar ones):
 ${asked}
 
-Generate ONE new comprehension question about the text. Vary the question type across the session — mix literal ("who/what/where/when"), inferential ("why"), action-focused ("what did X do"), and reflective ("how does X feel / what would happen if...") questions. Keep the language clear and natural, suitable for an English learner.
+Generate ONE new comprehension question about the text, written in ${language}. Vary the question type across the session — mix literal ("who/what/where/when"), inferential ("why"), action-focused ("what did X do"), and reflective ("how does X feel / what would happen if...") questions. Keep the wording clear and natural, suitable for a ${language} learner.
 
 Respond ONLY as valid JSON in this exact shape:
-{"question": "<the question>"}`;
+{"question": "<the question in ${language}>"}`;
 }
 
-function buildFeedbackPrompt(text, question, answer) {
-  return `You are an encouraging but accurate English reading-comprehension teacher.
+function buildFeedbackPrompt(text, question, answer, language) {
+  return `You are an encouraging but accurate ${language} reading-comprehension teacher.
 
-The student read this text:
+The student read this text (in ${language}):
 """
 ${text}
 """
@@ -203,19 +209,19 @@ ${text}
 You asked: "${question}"
 The student answered: "${answer}"
 
-Evaluate the answer based ONLY on the text. Decide if it is "correct", "partial", or "incorrect". Then write 1–3 sentences of warm feedback: confirm what they got right, gently correct mistakes, and if helpful, quote the relevant part of the text.
+Evaluate the answer based ONLY on the text. Decide if it is "correct", "partial", or "incorrect". Then write 1–3 sentences of warm feedback IN ${language}: confirm what they got right, gently correct mistakes, and if helpful, quote the relevant part of the text.
 
 Respond ONLY as valid JSON in this exact shape:
-{"verdict": "correct" | "partial" | "incorrect", "feedback": "<your feedback>"}`;
+{"verdict": "correct" | "partial" | "incorrect", "feedback": "<your feedback in ${language}>"}`;
 }
 
 app.post('/api/question', async (req, res) => {
   try {
-    const { text, history = [] } = req.body || {};
+    const { text, history = [], language } = req.body || {};
     if (!text || typeof text !== 'string' || text.trim().length < 20) {
       return res.status(400).json({ error: 'Please provide a reading text of at least 20 characters.' });
     }
-    const raw = await callLLM(buildQuestionPrompt(text, history));
+    const raw = await callLLM(buildQuestionPrompt(text, history, pickLanguage(language)));
     const parsed = extractJson(raw);
     if (!parsed.question) return res.status(502).json({ error: 'Model did not return a question.' });
     res.json({ question: parsed.question });
@@ -225,41 +231,41 @@ app.post('/api/question', async (req, res) => {
   }
 });
 
-function buildLookupPrompt(word, text) {
-  return `You are a helpful English vocabulary assistant for a language learner.
+function buildLookupPrompt(word, text, language) {
+  return `You are a helpful ${language} vocabulary assistant for a language learner.
 
-The student is reading this text (use it for context if relevant):
+The student is reading this ${language} text (use it for context if relevant):
 """
 ${text}
 """
 
 The word they want to understand: "${word}"
 
-Explain the word briefly and clearly. If it is an inflected form (past tense, plural, comparative, etc.), give its base/dictionary form. Provide a short image-search query that would return HELPFUL illustrations of the word:
-- For concrete nouns, use the noun itself (e.g., "shawl").
-- For verbs, suggest a scene (e.g., for "blew" use "person blowing air"; for "ran" use "person running").
+Explain the word briefly and clearly IN ${language}. If it is an inflected form (past tense, plural, conjugation, gender, comparative, etc.), give its base/dictionary form in ${language}. Provide a short ENGLISH image-search query that would return HELPFUL illustrations of the word (image search works best in English):
+- For concrete nouns, use the English noun (e.g., for "chal" use "shawl").
+- For verbs, suggest an English scene (e.g., for "sopló" use "person blowing air"; for "corrió" use "person running").
 - For abstract words or function words where images would not help, use an empty string "".
 
 Respond ONLY as valid JSON in this exact shape:
 {
   "word": "<the word as given>",
-  "base_form": "<base/dictionary form; same as word if not inflected>",
-  "part_of_speech": "<noun, verb, adjective, adverb, etc.>",
-  "meaning": "<1-2 sentence clear definition in simple English>",
-  "note": "<short note about inflection or context, or empty string>",
-  "example": "<a short example sentence using the word>",
-  "image_query": "<search query for images, or empty string>"
+  "base_form": "<base/dictionary form in ${language}; same as word if not inflected>",
+  "part_of_speech": "<noun, verb, adjective, adverb, etc. — in ${language}>",
+  "meaning": "<1-2 sentence clear definition in simple ${language}>",
+  "note": "<short note in ${language} about inflection or context, or empty string>",
+  "example": "<a short example sentence in ${language} using the word>",
+  "image_query": "<English search query for images, or empty string>"
 }`;
 }
 
 app.post('/api/lookup', async (req, res) => {
   try {
-    const { word, text = '' } = req.body || {};
+    const { word, text = '', language } = req.body || {};
     if (!word || typeof word !== 'string' || !word.trim()) {
       return res.status(400).json({ error: 'Missing word.' });
     }
     const clean = word.trim().slice(0, 60);
-    const raw = await callLLM(buildLookupPrompt(clean, text));
+    const raw = await callLLM(buildLookupPrompt(clean, text, pickLanguage(language)));
     const parsed = extractJson(raw);
     if (!parsed.meaning) return res.status(502).json({ error: 'Model did not return a meaning.' });
     res.json(parsed);
@@ -271,11 +277,11 @@ app.post('/api/lookup', async (req, res) => {
 
 app.post('/api/feedback', async (req, res) => {
   try {
-    const { text, question, answer } = req.body || {};
+    const { text, question, answer, language } = req.body || {};
     if (!text || !question || typeof answer !== 'string') {
       return res.status(400).json({ error: 'Missing text, question, or answer.' });
     }
-    const raw = await callLLM(buildFeedbackPrompt(text, question, answer));
+    const raw = await callLLM(buildFeedbackPrompt(text, question, answer, pickLanguage(language)));
     const parsed = extractJson(raw);
     if (!parsed.feedback || !parsed.verdict) {
       return res.status(502).json({ error: 'Model did not return proper feedback.' });

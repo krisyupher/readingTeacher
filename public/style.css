@@ -416,6 +416,28 @@ button.secondary:hover:not(:disabled) { background: var(--secondary-hover); }
   margin-left: auto;
 }
 
+.lang-label {
+  color: var(--muted);
+  font-size: 0.85rem;
+  margin-left: 0.5rem;
+}
+
+.lang-select {
+  padding: 0.45rem 0.6rem;
+  font-size: 0.9rem;
+  font-family: inherit;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--input-bg-focus);
+  color: var(--text);
+  cursor: pointer;
+}
+
+.lang-select:focus {
+  outline: 2px solid var(--primary);
+  outline-offset: -1px;
+}
+
 .hidden { display: none !important; }
 
 .reading-display {
