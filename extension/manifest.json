@@ -1,0 +1,25 @@
+{
+  "manifest_version": 3,
+  "name": "Reading Teacher",
+  "version": "1.0.0",
+  "description": "Practice reading comprehension and look up words on any page.",
+  "permissions": ["sidePanel", "activeTab", "storage", "tabs", "scripting"],
+  "host_permissions": ["<all_urls>"],
+  "action": {
+    "default_title": "Open Reading Teacher"
+  },
+  "background": {
+    "service_worker": "background.js"
+  },
+  "side_panel": {
+    "default_path": "sidepanel.html"
+  },
+  "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "js": ["content.js"],
+      "run_at": "document_idle",
+      "all_frames": false
+    }
+  ]
+}

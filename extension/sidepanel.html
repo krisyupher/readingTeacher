@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Reading Teacher</title>
+  <link rel="stylesheet" href="sidepanel.css" />
+</head>
+<body>
+  <header>
+    <h1 data-i18n="app_title">Reading Teacher</h1>
+    <div class="header-actions">
+      <select id="language-select" class="lang-select" title="Language">
+        <option value="English">English</option>
+        <option value="Spanish">Spanish</option>
+        <option value="French">French</option>
+        <option value="Portuguese">Portuguese</option>
+      </select>
+      <button id="theme-toggle" class="theme-toggle" type="button">Dark</button>
+    </div>
+  </header>
+
+  <main>
+    <section class="pane lookup-pane" id="pane-lookup">
+      <div class="pane-header">
+        <h3 data-i18n="word_lookup">Word lookup</h3>
+        <button class="pane-toggle" data-pane="lookup" type="button">−</button>
+      </div>
+      <div class="pane-body">
+        <p class="hint" data-i18n="lookup_hint">Highlight a word on the page to look it up.</p>
+        <div class="lookup-form">
+          <input type="text" id="lookup-input" data-i18n-placeholder="lookup_placeholder" placeholder="Or type a word..." />
+          <button id="lookup-btn" class="secondary" data-i18n="lookup_btn">Look up</button>
+        </div>
+        <div id="lookup-status" class="hint"></div>
+        <div id="lookup-result" class="lookup-result hidden"></div>
+      </div>
+    </section>
+
+    <section class="pane qa-pane" id="pane-qa">
+      <div class="pane-header">
+        <h3 data-i18n="practice">Practice</h3>
+        <div class="pane-header-actions">
+          <button id="reload-page-btn" class="secondary small" type="button" data-i18n="reload_page">Reload page</button>
+          <button class="pane-toggle" data-pane="qa" type="button">−</button>
+        </div>
+      </div>
+      <div class="pane-body">
+        <div id="page-info" class="hint"></div>
+        <button id="start-btn" class="primary full-width hidden" data-i18n="start_btn">Start practicing</button>
+
+        <div id="qa-area" class="hidden">
+          <div id="question-box" class="question-box">
+            <span class="label" data-i18n="question_label">Question</span>
+            <p id="question-text"></p>
+          </div>
+          <textarea id="answer-input" placeholder="Type your answer..."></textarea>
+          <div class="row">
+            <button id="submit-btn" data-i18n="submit_btn">Submit answer</button>
+            <button id="next-btn" class="hidden" data-i18n="next_btn">Next question</button>
+          </div>
+          <div id="feedback-box" class="feedback-box hidden">
+            <span class="label" id="feedback-label">Feedback</span>
+            <p id="feedback-text"></p>
+          </div>
+          <details id="history-details">
+            <summary><span data-i18n="history">History</span> (<span id="history-count">0</span>)</summary>
+            <ol id="history-list"></ol>
+          </details>
+        </div>
+      </div>
+    </section>
+
+    <div id="error-banner" class="error hidden"></div>
+  </main>
+
+  <script src="sidepanel.js"></script>
+</body>
+</html>
