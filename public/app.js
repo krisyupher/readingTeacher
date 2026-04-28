@@ -3,6 +3,7 @@ const $ = (id) => document.getElementById(id);
 const API_BASE = window.READING_TEACHER_API_BASE || '';
 
 const LANG_CODES = { English: 'en', Spanish: 'es', French: 'fr', Portuguese: 'pt' };
+const LANG_BCP47 = { English: 'en-US', Spanish: 'es-ES', French: 'fr-FR', Portuguese: 'pt-BR' };
 
 const TRANSLATIONS = {
   English: {
@@ -57,7 +58,12 @@ const TRANSLATIONS = {
     verdict_partial: 'Partially correct',
     verdict_incorrect: 'Not quite',
     history_q: 'Q:',
-    history_you: 'You:'
+    history_you: 'You:',
+    listen_btn: '🔊 Listen',
+    stop_btn: '⏹ Stop',
+    listen_title: 'Read the text aloud',
+    speak_word: 'Pronounce this word',
+    tts_unsupported: 'Your browser does not support text-to-speech.'
   },
   Spanish: {
     app_title: 'Profesor de Lectura',
@@ -111,7 +117,12 @@ const TRANSLATIONS = {
     verdict_partial: 'Parcialmente correcto',
     verdict_incorrect: 'No del todo',
     history_q: 'P:',
-    history_you: 'Tú:'
+    history_you: 'Tú:',
+    listen_btn: '🔊 Escuchar',
+    stop_btn: '⏹ Detener',
+    listen_title: 'Leer el texto en voz alta',
+    speak_word: 'Pronunciar esta palabra',
+    tts_unsupported: 'Tu navegador no admite la lectura en voz alta.'
   },
   French: {
     app_title: 'Professeur de Lecture',
@@ -165,7 +176,12 @@ const TRANSLATIONS = {
     verdict_partial: 'Partiellement correct',
     verdict_incorrect: 'Pas tout à fait',
     history_q: 'Q :',
-    history_you: 'Toi :'
+    history_you: 'Toi :',
+    listen_btn: '🔊 Écouter',
+    stop_btn: '⏹ Arrêter',
+    listen_title: 'Lire le texte à voix haute',
+    speak_word: 'Prononcer ce mot',
+    tts_unsupported: 'Votre navigateur ne prend pas en charge la synthèse vocale.'
   },
   Portuguese: {
     app_title: 'Professor de Leitura',
@@ -219,7 +235,12 @@ const TRANSLATIONS = {
     verdict_partial: 'Parcialmente correto',
     verdict_incorrect: 'Não exatamente',
     history_q: 'P:',
-    history_you: 'Você:'
+    history_you: 'Você:',
+    listen_btn: '🔊 Ouvir',
+    stop_btn: '⏹ Parar',
+    listen_title: 'Ler o texto em voz alta',
+    speak_word: 'Pronunciar esta palavra',
+    tts_unsupported: 'Seu navegador não suporta leitura em voz alta.'
   }
 };
 
@@ -270,14 +291,93 @@ const els = {
   attachBtn: $('attach-btn'),
   fileInput: $('file-input'),
   fileStatus: $('file-status'),
-  languageSelect: $('language-select')
+  languageSelect: $('language-select'),
+  listenBtn: $('listen-btn')
 };
+
+const ttsSupported = 'speechSynthesis' in window;
+let ttsActive = false;
+let ttsQueue = [];
+
+function chunkText(text, maxLen = 200) {
+  const cleaned = String(text || '').replace(/\s+/g, ' ').trim();
+  if (!cleaned) return [];
+  if (cleaned.length <= maxLen) return [cleaned];
+  const chunks = [];
+  let rest = cleaned;
+  while (rest.length > maxLen) {
+    let split = -1;
+    for (const ender of ['. ', '! ', '? ', '; ', '。', '！', '？']) {
+      const i = rest.lastIndexOf(ender, maxLen);
+      if (i > split) split = i + ender.length;
+    }
+    if (split <= 0) split = rest.lastIndexOf(' ', maxLen);
+    if (split <= 0) split = maxLen;
+    chunks.push(rest.slice(0, split).trim());
+    rest = rest.slice(split).trim();
+  }
+  if (rest) chunks.push(rest);
+  return chunks;
+}
+
+function updateListenBtn() {
+  if (!els.listenBtn) return;
+  els.listenBtn.textContent = ttsActive ? t('stop_btn') : t('listen_btn');
+  els.listenBtn.title = t('listen_title');
+  els.listenBtn.classList.toggle('speaking', ttsActive);
+}
+
+function stopSpeaking() {
+  ttsQueue = [];
+  ttsActive = false;
+  if (ttsSupported) window.speechSynthesis.cancel();
+  updateListenBtn();
+}
+
+function speak(text, language) {
+  if (!ttsSupported) {
+    showError(t('tts_unsupported'));
+    return false;
+  }
+  const chunks = chunkText(text);
+  if (!chunks.length) return false;
+  window.speechSynthesis.cancel();
+  ttsQueue = chunks.slice();
+  ttsActive = true;
+  const lang = LANG_BCP47[language] || 'en-US';
+  updateListenBtn();
+  const next = () => {
+    if (!ttsActive || ttsQueue.length === 0) {
+      ttsActive = false;
+      updateListenBtn();
+      return;
+    }
+    const u = new SpeechSynthesisUtterance(ttsQueue.shift());
+    u.lang = lang;
+    u.rate = 0.95;
+    u.onend = next;
+    u.onerror = next;
+    window.speechSynthesis.speak(u);
+  };
+  next();
+  return true;
+}
+
+if (!ttsSupported && els.listenBtn) {
+  els.listenBtn.classList.add('hidden');
+} else if (els.listenBtn) {
+  els.listenBtn.addEventListener('click', () => {
+    if (ttsActive) stopSpeaking();
+    else if (state.text) speak(state.text, state.language);
+  });
+}
 
 els.languageSelect.value = state.language;
 els.languageSelect.addEventListener('change', () => {
   state.language = els.languageSelect.value;
   localStorage.setItem('language', state.language);
   state.lookupCache.clear();
+  stopSpeaking();
   applyUi();
 });
 
@@ -315,6 +415,9 @@ function applyUi() {
     const btn = pane.querySelector('.pane-toggle');
     if (btn) btn.title = pane.classList.contains('collapsed') ? t('expand') : t('minimize');
   });
+
+  updateListenBtn();
+  document.querySelectorAll('.speak-word').forEach((b) => (b.title = t('speak_word')));
 }
 
 applyUi();
@@ -471,15 +574,21 @@ function renderLookup(data) {
   const headWord = data.base_form && data.base_form.toLowerCase() !== data.word.toLowerCase()
     ? `${escapeHtml(data.word)} <span style="color:var(--muted);font-weight:400">→ ${escapeHtml(data.base_form)}</span>`
     : escapeHtml(data.word);
+  const speakTarget = data.base_form || data.word;
+  const speakBtn = ttsSupported
+    ? `<button type="button" class="speak-word" data-speak="${escapeHtml(speakTarget)}" title="${escapeHtml(t('speak_word'))}" aria-label="${escapeHtml(t('speak_word'))}">🔊</button>`
+    : '';
 
   els.lookupResult.innerHTML = `
-    <p class="word-head">${headWord}</p>
+    <p class="word-head">${headWord} ${speakBtn}</p>
     <p class="word-pos">${escapeHtml(data.part_of_speech || '')}</p>
     <p class="word-meaning">${escapeHtml(data.meaning || '')}</p>
     ${data.note ? `<div class="word-note">${escapeHtml(data.note)}</div>` : ''}
     ${data.example ? `<p class="word-example">"${escapeHtml(data.example)}"</p>` : ''}
     <div id="lookup-images-container"></div>
   `;
+  const sb = els.lookupResult.querySelector('.speak-word');
+  if (sb) sb.addEventListener('click', () => speak(sb.dataset.speak, state.language));
 
   const imgContainer = document.getElementById('lookup-images-container');
   if (data.image_query) {
@@ -742,6 +851,7 @@ function escapeHtml(s) {
 }
 
 function resetSession() {
+  stopSpeaking();
   state.text = '';
   state.currentQuestion = null;
   state.history = [];

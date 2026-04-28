@@ -202,6 +202,38 @@ main {
   font-size: 1rem;
 }
 
+.reading-pane-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+.reading-pane-header h3 { margin: 0; flex: 1; }
+
+button.small {
+  padding: 0.35rem 0.7rem;
+  font-size: 0.85rem;
+}
+
+button.speaking {
+  background: var(--primary);
+  color: #fff;
+}
+
+.speak-word {
+  background: transparent;
+  color: var(--primary);
+  border: none;
+  padding: 0.1rem 0.35rem;
+  margin-left: 0.35rem;
+  font-size: 1rem;
+  line-height: 1;
+  vertical-align: middle;
+  cursor: pointer;
+  border-radius: 4px;
+}
+.speak-word:hover:not(:disabled) { background: var(--secondary); }
+
 .pane-body {
   flex: 1 1 auto;
   min-height: 0;

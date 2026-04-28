@@ -12,13 +12,14 @@ Before running, copy `.env.example` to `.env` and set at least one of `GROQ_API_
 
 ## Architecture
 
-Two pieces, no framework on either side:
+Three pieces, no framework on any of them:
 
 - **[server.js](server.js)** — Express server that serves `public/` statically and exposes three JSON POST endpoints:
   - `/api/question` — generates a new comprehension question from `{ text, history, language }`
   - `/api/feedback` — grades an answer as `correct` / `partial` / `incorrect` with written feedback
   - `/api/lookup` — returns a vocabulary explanation (`base_form`, `part_of_speech`, `meaning`, `example`, `image_query`) for a word
-- **[public/app.js](public/app.js)** — all frontend logic: PDF.js rendering, drag-drop file handling, word selection, API calls, i18n, theme toggle, and collapsible side panes. Uses no framework — DOM by `getElementById`, state in a single `state` object.
+- **[public/app.js](public/app.js)** — web frontend: PDF.js rendering, drag-drop file handling, word selection, API calls, i18n, theme toggle, and collapsible side panes. Uses no framework — DOM by `getElementById`, state in a single `state` object.
+- **[extension/](extension/)** — Chrome MV3 extension that brings the same Q&A + lookup UX into a side panel against the active tab's page text (rather than a pasted text or PDF). Calls the same three backend endpoints.
 
 ### LLM provider dispatch (the load-bearing piece of the server)
 
@@ -50,3 +51,15 @@ Images for word lookup are fetched **client-side** from Wikimedia Commons (`comm
 ### Split deployment (GitHub Pages + Render)
 
 The frontend supports pointing at a remote backend by setting `window.READING_TEACHER_API_BASE` in [public/index.html](public/index.html) — `postJson` prepends it to every API path. Empty string = same origin (local dev). CORS is open by default; set `ALLOWED_ORIGIN` env var on the backend to lock it down to the Pages origin. See README for the full deploy flow.
+
+### Chrome extension
+
+Manifest V3 with a side panel ([extension/manifest.json](extension/manifest.json), [extension/sidepanel.html](extension/sidepanel.html)). Three moving parts:
+
+- **[extension/background.js](extension/background.js)** — service worker. Single job: `chrome.sidePanel.setPanelBehavior({ openPanelOnActionClick: true })` so clicking the toolbar icon opens the panel.
+- **[extension/content.js](extension/content.js)** — injected into every `http(s)` page (`run_at: document_idle`, guarded by `window.__readingTeacherContentLoaded` to dedupe). Two responsibilities: (1) replies to `{ type: 'get-page-text' }` with `innerText` from `<article>` → `<main>` → `<body>` (in that priority order) plus title/url; (2) on `mouseup` / `dblclick`, sends `{ type: 'word-selected', word }` to the panel after trimming non-letter punctuation and rejecting selections > 40 chars.
+- **[extension/sidepanel.js](extension/sidepanel.js)** — the panel UI. Mirrors the structure of `public/app.js` (same `state` shape, same `TRANSLATIONS` keyed by language, same `applyUi()` pattern, same `lookupCache` Map) but pulls reading text from the active tab via `chrome.tabs.sendMessage(tabId, { type: 'get-page-text' })` and uses `chrome.storage.local` for prefs instead of `localStorage`. If the content script hasn't loaded (e.g. the tab existed before the extension), it falls back to `chrome.scripting.executeScript({ files: ['content.js'] })` and retries. Re-fetches page text on `chrome.tabs.onActivated` and on `onUpdated` when status is `complete`. Page text is sliced to 20000 chars before being sent to the LLM.
+
+`API_BASE` is **hardcoded** at the top of [extension/sidepanel.js](extension/sidepanel.js) (currently a Vercel URL); update it there when redeploying the backend. The extension does not read `window.READING_TEACHER_API_BASE` — that mechanism is web-frontend only.
+
+Translations in `sidepanel.js` are a **separate** dictionary from `public/app.js` (the panel has its own keys like `page_ready`, `no_page_text`, `reload_page` that the web app doesn't have). Keep them in sync only where the same key exists in both; do not assume the dictionaries are identical.

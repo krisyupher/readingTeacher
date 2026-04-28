@@ -293,6 +293,25 @@ button.small {
   font-size: 0.75rem;
 }
 
+button.speaking {
+  background: var(--primary);
+  color: #fff;
+}
+
+.speak-word {
+  background: transparent;
+  color: var(--primary);
+  border: none;
+  padding: 0.1rem 0.3rem;
+  margin-left: 0.3rem;
+  font-size: 0.95rem;
+  line-height: 1;
+  vertical-align: middle;
+  cursor: pointer;
+  border-radius: 4px;
+}
+.speak-word:hover:not(:disabled) { background: var(--secondary); }
+
 button.full-width { width: 100%; }
 
 textarea {

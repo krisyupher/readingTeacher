@@ -36,6 +36,36 @@ const PROVIDERS = {
   gemini: {
     key: () => process.env.GEMINI_API_KEY,
     type: 'gemini'
+  },
+  deepseek: {
+    key: () => process.env.DEEPSEEK_API_KEY,
+    url: 'https://api.deepseek.com/v1/chat/completions',
+    type: 'openai'
+  },
+  qwen: {
+    key: () => process.env.QWEN_API_KEY,
+    url: 'https://dashscope-intl.aliyuncs.com/compatible-mode/v1/chat/completions',
+    type: 'openai'
+  },
+  zhipu: {
+    key: () => process.env.ZHIPU_API_KEY,
+    url: 'https://open.bigmodel.cn/api/paas/v4/chat/completions',
+    type: 'openai'
+  },
+  baichuan: {
+    key: () => process.env.BAICHUAN_API_KEY,
+    url: 'https://api.baichuan-ai.com/v1/chat/completions',
+    type: 'openai'
+  },
+  yi: {
+    key: () => process.env.YI_API_KEY,
+    url: 'https://api.lingyiwanwu.com/v1/chat/completions',
+    type: 'openai'
+  },
+  moonshot: {
+    key: () => process.env.MOONSHOT_API_KEY,
+    url: 'https://api.moonshot.ai/v1/chat/completions',
+    type: 'openai'
   }
 };
 
@@ -47,7 +77,16 @@ const DEFAULT_CHAIN = [
   'groq:gemma2-9b-it',
   'gemini:gemini-2.0-flash',
   'gemini:gemini-1.5-flash',
+  'deepseek:deepseek-chat',
+  'qwen:qwen-plus',
+  'qwen:qwen-turbo',
+  'zhipu:glm-4-flash',
+  'moonshot:moonshot-v1-8k',
+  'yi:yi-large',
+  'baichuan:Baichuan4-Turbo',
+  'openrouter:deepseek/deepseek-chat:free',
   'openrouter:qwen/qwen-2.5-72b-instruct:free',
+  'openrouter:zhipu/glm-4-9b:free',
   'openrouter:meta-llama/llama-3.3-70b-instruct:free',
   'openrouter:google/gemini-2.0-flash-exp:free',
   'openai:gpt-4o-mini'
@@ -140,7 +179,7 @@ async function callModel(spec, prompt) {
 async function callLLM(prompt) {
   const configuredProviders = Object.entries(PROVIDERS).filter(([, p]) => p.key()).map(([n]) => n);
   if (configuredProviders.length === 0) {
-    throw new Error('No LLM provider API keys configured. Set at least one of GROQ_API_KEY, GEMINI_API_KEY, OPENAI_API_KEY, OPENROUTER_API_KEY in .env.');
+    throw new Error(`No LLM provider API keys configured. Set at least one of ${Object.keys(PROVIDERS).map((p) => p.toUpperCase() + '_API_KEY').join(', ')} in .env (see .env.example).`);
   }
   const errors = [];
   for (let attempt = 0; attempt < MODEL_CHAIN.length; attempt++) {
@@ -305,6 +344,6 @@ app.listen(PORT, () => {
     console.log(`  ${ok} ${i + 1}. ${m}`);
   });
   if (active.length === 0) {
-    console.warn('WARNING: No API keys configured. Set at least one of GROQ_API_KEY, GEMINI_API_KEY, OPENAI_API_KEY, OPENROUTER_API_KEY in .env');
+    console.warn(`WARNING: No API keys configured. Set at least one of ${Object.keys(PROVIDERS).map((p) => p.toUpperCase() + '_API_KEY').join(', ')} in .env (see .env.example)`);
   }
 });
